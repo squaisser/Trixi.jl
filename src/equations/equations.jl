@@ -620,6 +620,11 @@ include("inviscid_burgers_1d.jl")
 abstract type AbstractShallowWaterEquations{NDIMS, NVARS} <:
               AbstractEquations{NDIMS, NVARS} end
 
+# Incompressible Euler relaxation equations
+abstract type AbstractIncompressibleEulerRelaxationEquations{NDIMS, NVARS} <:
+              AbstractEquations{NDIMS, NVARS} end
+include("incompressible_euler_relaxation_1d.jl")
+
 # CompressibleEulerEquations
 abstract type AbstractCompressibleEulerEquations{NDIMS, NVARS} <:
               AbstractEquations{NDIMS, NVARS} end

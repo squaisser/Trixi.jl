@@ -169,6 +169,7 @@ export AcousticPerturbationEquations2D,
        IdealGlmMhdEquations1D, IdealGlmMhdEquations2D, IdealGlmMhdEquations3D,
        IdealGlmMhdMulticomponentEquations1D, IdealGlmMhdMulticomponentEquations2D,
        IdealGlmMhdMultiIonEquations2D, IdealGlmMhdMultiIonEquations3D,
+       IncompressibleEulerRelaxationEquations1D,
        HyperbolicDiffusionEquations1D, HyperbolicDiffusionEquations2D,
        HyperbolicDiffusionEquations3D,
        LinearScalarAdvectionEquation1D, LinearScalarAdvectionEquation2D,
@@ -233,7 +234,7 @@ export boundary_condition_do_nothing,
        Adiabatic, Isothermal,
        BoundaryConditionCoupled
 
-export initial_condition_convergence_test, source_terms_convergence_test,
+export initial_condition_convergence_test, source_terms_constant, source_terms_convergence_test,
        source_terms_lorentz, source_terms_collision_ion_electron,
        source_terms_collision_ion_ion
 export source_terms_harmonic
