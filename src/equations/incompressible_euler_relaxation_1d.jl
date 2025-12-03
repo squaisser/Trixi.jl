@@ -12,7 +12,7 @@ struct IncompressibleEulerRelaxationEquations1D{RealT <: Real} <:
 end
 
 function varnames(::typeof(cons2cons), ::IncompressibleEulerRelaxationEquations1D)
-    return (:p_eps, :v1, :V_eps)
+    return ("p_eps", "v1", "V_eps")
 end
 
 function initial_condition_constant(x, t, equations::IncompressibleEulerRelaxationEquations1D)
@@ -42,6 +42,15 @@ end
     f2 = 1/(equations.epsilon^2) * (V_eps + p_eps)
     f3 = equations.a*v1
     return SVector(f1, f2, f3)
+end
+
+@inline function max_abs_speed_naive(u_ll, u_rr, orientation::Integer,
+                               equations::IncompressibleEulerRelaxationEquations1D)
+    return sqrt(equations.a+1)/(equations.epsilon)
+end
+
+@inline function max_abs_speeds(u, equations::IncompressibleEulerRelaxationEquations1D)
+    return (sqrt(equations.a+1)/(equations.epsilon),)
 end
 
 end # @muladd

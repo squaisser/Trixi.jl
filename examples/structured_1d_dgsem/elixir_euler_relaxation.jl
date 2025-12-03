@@ -3,10 +3,12 @@
 
 using OrdinaryDiffEqLowStorageRK
 using Trixi
+using Infiltrator
 
 ###############################################################################
 # semidiscretization of the compressible Euler equations
-equations = IncompressibleEulerRelaxationEquations1D(0.1, 0.1)
+#TODO: choose proper parameters
+equations = IncompressibleEulerRelaxationEquations1D(0.1, 0.1) #epsilon, a
 
 initial_condition = initial_condition_constant
 
@@ -21,18 +23,16 @@ initial_condition = initial_condition_constant
 # We remark, however, that the now default `max_abs_speed` is in general recommended due to compliance with the 
 # `StepsizeCallback` (CFL-Condition) and less diffusion.
 
-println("This script runs successfully until here.")
-
-solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs(max_abs_speed))
+solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs())
 
 coordinates_min = (0.0,)
-coordinates_max = (2.0,)
+coordinates_max = (3.0,)
 cells_per_dimension = (16,)
 
 mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max)
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
-                                    source_terms = source_terms_convergence_test)
+                                    source_terms = source_terms_constant)
 
 ###############################################################################
 # ODE solvers, callbacks etc.
@@ -43,23 +43,23 @@ ode = semidiscretize(semi, tspan)
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-analysis_callback = AnalysisCallback(semi, interval = analysis_interval,
-                                     extra_analysis_errors = (:l2_error_primitive,
-                                                              :linf_error_primitive))
+analysis_callback = AnalysisCallback(semi, interval = analysis_interval) #note: removed extra analysis errors
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
 save_solution = SaveSolutionCallback(interval = 100,
                                      save_initial_solution = true,
                                      save_final_solution = true,
-                                     solution_variables = cons2prim)
+                                     solution_variables = cons2cons)
 
 stepsize_callback = StepsizeCallback(cfl = 0.8)
 
-callbacks = CallbackSet(summary_callback,
-                        analysis_callback, alive_callback,
-                        save_solution,
-                        stepsize_callback)
+callbacks = CallbackSet(summary_callback,   #works
+                        #analysis_callback,  #MethodError: no method matching cons2entropy
+                        alive_callback,     #works
+                        #save_solution,      #HDF5 error
+                        stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
+                        )
 
 ###############################################################################
 # run the simulation
@@ -67,3 +67,11 @@ callbacks = CallbackSet(summary_callback,
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             ode_default_options()..., callback = callbacks);
+println("Simulation finished.")
+
+pd = PlotData1D(sol)
+@show pd.variable_names
+
+using Plots
+plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")   
+println("Plotting finished.")
