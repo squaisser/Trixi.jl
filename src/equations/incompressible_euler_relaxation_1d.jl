@@ -2,7 +2,7 @@
 # Since these FMAs can increase the performance of many numerical algorithms,
 # we need to opt-in explicitly.
 # See https://ranocha.de/blog/Optimizing_EC_Trixi for further details.
-#@muladd begin
+@muladd begin
 #! format: noindent
 
 struct IncompressibleEulerRelaxationEquations1D{RealT <: Real} <: 
@@ -38,10 +38,10 @@ end
                       equations::IncompressibleEulerRelaxationEquations1D)
     p_eps, v1, V_eps = u
     # Ignore orientation since it is always "1" in 1D
-    f1 = u
+    f1 = v1
     f2 = 1/(equations.epsilon^2) * (V_eps + p_eps)
     f3 = equations.a*v1
     return SVector(f1, f2, f3)
 end
 
-#end # @muladd
+end # @muladd
