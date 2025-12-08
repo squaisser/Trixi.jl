@@ -8,7 +8,7 @@ using Infiltrator
 ###############################################################################
 # semidiscretization of the compressible Euler equations
 #TODO: choose proper parameters
-equations = IncompressibleEulerRelaxationEquations1D(0.1, 0.1) #epsilon, a
+equations = IncompressibleEulerRelaxationEquations1D(0.1, 1.) #epsilon, a
 
 initial_condition = initial_condition_constant
 
@@ -43,7 +43,8 @@ ode = semidiscretize(semi, tspan)
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-analysis_callback = AnalysisCallback(semi, interval = analysis_interval) #note: removed extra analysis errors
+analysis_callback = AnalysisCallback(semi, interval = analysis_interval,
+                                            analysis_integrals=()) #NOTE: removed extra analysis errors and integrals to avoid errors
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
@@ -55,9 +56,9 @@ save_solution = SaveSolutionCallback(interval = 100,
 stepsize_callback = StepsizeCallback(cfl = 0.8)
 
 callbacks = CallbackSet(summary_callback,   #works
-                        #analysis_callback,  #MethodError: no method matching cons2entropy
+                        analysis_callback,  #fixed: MethodError: no method matching cons2entropy if not analysis_integrals=() (default analysis integrals:entropy -> needs cons2entropy)
                         alive_callback,     #works
-                        #save_solution,      #HDF5 error
+                        save_solution,      #works
                         stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
                         )
 
@@ -73,5 +74,7 @@ pd = PlotData1D(sol)
 @show pd.variable_names
 
 using Plots
-plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")   
+plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps", ylims=(0.8, 1.2))
+plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1", ylims=(0.8, 1.2))  
+plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")
 println("Plotting finished.")
