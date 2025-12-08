@@ -18,10 +18,26 @@ end
 function initial_condition_constant(x, t, equations::IncompressibleEulerRelaxationEquations1D)
     #TODO: assign proper initial condition
     RealT = eltype(x)
-    p_eps = 1
+    p_eps = convert(RealT, 1)
     v1 = convert(RealT, 1)
-    V_eps = 1
+    V_eps = convert(RealT, 1)
     return SVector(p_eps, v1, V_eps)
+end
+
+function initial_condition_riemann(x, t, equations::IncompressibleEulerRelaxationEquations1D)
+    #TODO: assign proper initial condition
+    RealT = eltype(x)
+    v1_l = convert(RealT, 0)
+    v1_r = convert(RealT, 1)
+    p_eps_l = convert(RealT, 1)*equations.epsilon^2
+    p_eps_r = convert(RealT, 0.125)*equations.epsilon^2
+    V_eps_l = convert(RealT, 1)*equations.epsilon^2
+    V_eps_r = convert(RealT, 0.125)*equations.epsilon^2
+    if x[1] < 1.0
+        return SVector(p_eps_l, v1_l, V_eps_l)
+    else
+        return SVector(p_eps_r, v1_r, V_eps_r)
+    end
 end
 
 @inline function source_terms_constant(u, x, t,

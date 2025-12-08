@@ -10,7 +10,8 @@ using Infiltrator
 #TODO: choose proper parameters
 equations = IncompressibleEulerRelaxationEquations1D(0.1, 1.) #epsilon, a
 
-initial_condition = initial_condition_constant
+initial_condition = initial_condition_riemann
+# initial_condition = initial_condition_constant
 
 # Note that the expected EOC of 5 is not reached with this flux.
 # Using `flux_hll` instead yields the expected EOC.
@@ -26,7 +27,7 @@ initial_condition = initial_condition_constant
 solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs())
 
 coordinates_min = (0.0,)
-coordinates_max = (3.0,)
+coordinates_max = (2.0,)
 cells_per_dimension = (16,)
 
 mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max)
@@ -37,7 +38,7 @@ semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 2.0)
+tspan = (0.0, 0.0)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -68,13 +69,16 @@ callbacks = CallbackSet(summary_callback,   #works
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             ode_default_options()..., callback = callbacks);
-println("Simulation finished.")
+println("Simulation finished with code $(sol.retcode).")
 
 pd = PlotData1D(sol)
 @show pd.variable_names
 
+###############################################################################
+# plot some results
 using Plots
-plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps", ylims=(0.8, 1.2))
-plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1", ylims=(0.8, 1.2))  
-plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")
+p1 = plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")#, ylims=(0.005, 0.006))
+p2 = plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1")#, ylims=(0, 1))  
+p3 = plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")#, ylims=(0, 0.005))
+display(plot(p1, p2, p3, layout = (3, 1)))
 println("Plotting finished.")

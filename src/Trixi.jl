@@ -217,6 +217,7 @@ export splitting_steger_warming, splitting_vanleer_haenel,
        splitting_drikakis_tsangaris
 
 export initial_condition_constant,
+       initial_condition_riemann,
        initial_condition_gauss,
        initial_condition_density_wave,
        initial_condition_weak_blast_wave
