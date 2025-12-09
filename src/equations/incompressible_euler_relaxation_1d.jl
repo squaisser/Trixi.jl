@@ -33,7 +33,7 @@ function initial_condition_riemann(x, t, equations::IncompressibleEulerRelaxatio
     p_eps_r = convert(RealT, 0.125)*equations.epsilon^2
     V_eps_l = convert(RealT, 1)*equations.epsilon^2
     V_eps_r = convert(RealT, 0.125)*equations.epsilon^2
-    if x[1] < 1.0
+    if x[1] < 0.0
         return SVector(p_eps_l, v1_l, V_eps_l)
     else
         return SVector(p_eps_r, v1_r, V_eps_r)
