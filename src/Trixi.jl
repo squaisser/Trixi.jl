@@ -235,7 +235,7 @@ export boundary_condition_do_nothing,
        Adiabatic, Isothermal,
        BoundaryConditionCoupled
 
-export initial_condition_convergence_test, source_terms_constant, source_terms_convergence_test,
+export initial_condition_convergence_test, source_terms_constant, source_terms_homogeneous, source_terms_convergence_test,
        source_terms_lorentz, source_terms_collision_ion_electron,
        source_terms_collision_ion_ion
 export source_terms_harmonic

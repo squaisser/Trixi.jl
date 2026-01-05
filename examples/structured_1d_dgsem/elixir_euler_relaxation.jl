@@ -45,14 +45,14 @@ mesh = TreeMesh(coordinates_min, coordinates_max,
                 )
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
-                                    source_terms = source_terms_constant,
+                                    source_terms = source_terms_homogeneous,
                                     boundary_conditions = boundary_conditions_hyperbolic
                                     )
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 0.001)
+tspan = (0.0, 0.0005)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -85,9 +85,8 @@ callbacks = CallbackSet(summary_callback,   #works
 
 ###############################################################################
 # run the simulation
-
 sol = solve(ode, ImplicitEuler(autodiff=false);
-            dt = 0.001, # solve needs some value here but it will be overwritten by the stepsize_callback
+            dt = 0.0001, # solve needs some value here but it will be overwritten by the stepsize_callback
             ode_default_options()..., callback = callbacks);
 println("Simulation finished with code $(sol.retcode).")
 
@@ -95,10 +94,59 @@ println("Simulation finished with code $(sol.retcode).")
 # plot some results
 using Plots
 pd = PlotData1D(sol)
+
+#analytical solution
+p_eps_l, v1_l, V_eps_l = initial_condition(-0.5, 0.0, equations)
+p_eps_r, v1_r, V_eps_r = initial_condition(0.5, 0.0, equations)
+
+function analytical_solution_p_eps(x, t, equations::IncompressibleEulerRelaxationEquations1D, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r)
+    b = sqrt(equations.a + 1) / equations.epsilon
+    if x/t < -b
+        return p_eps_l
+    elseif x/t < 0.0
+        return p_eps_l + 1/(2*(equations.a + 1))*((p_eps_r-p_eps_l)+(V_eps_r-V_eps_l)) - 1/(2*b)*(v1_r - v1_l)
+    elseif x/t < b
+        return p_eps_r - 1/(2*(equations.a + 1))*((p_eps_r - p_eps_l)+(V_eps_r - V_eps_l)) - 1/(2*b)*(v1_r - v1_l)
+    else
+        return p_eps_r
+    end
+end
+function analytical_solution_v1(x, t, equations::IncompressibleEulerRelaxationEquations1D, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r)
+    b = sqrt(equations.a + 1) / equations.epsilon
+    if x/t < -b
+        return v1_l
+    elseif x/t < b
+        return 1/2*(v1_r + v1_l) - b/(2*(equations.a + 1))*((p_eps_r - p_eps_l)+(V_eps_r - V_eps_l))
+    else
+        return v1_r
+    end
+end
+function analytical_solution_V_eps(x, t, equations::IncompressibleEulerRelaxationEquations1D, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r)
+    b = sqrt(equations.a + 1) / equations.epsilon
+    if x/t < -b
+        return V_eps_l
+    elseif x/t < 0.0
+        return V_eps_l + equations.a/(2*(equations.a + 1))*((p_eps_r - p_eps_l)+(V_eps_r - V_eps_l)) - equations.a/(2*b)*(v1_r - v1_l)
+    elseif x/t < b
+        return V_eps_r - equations.a/(2*(equations.a + 1))*((p_eps_r - p_eps_l)+(V_eps_r - V_eps_l)) - equations.a/(2*b)*(v1_r - v1_l)
+    else
+        return V_eps_r
+    end
+end
+
+p_eps_analytical = [analytical_solution_p_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pd.x]
+v1_analytical = [analytical_solution_v1(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pd.x]
+V_eps_analytical = [analytical_solution_V_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pd.x]
 p1 = plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")#, ylims=(0.005, 0.006))
+p1 = plot!(pd.x, p_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
 p2 = plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1")#, ylims=(0, 1))  
+p2 = plot!(pd.x, v1_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
 p3 = plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")#, ylims=(0, 0.005))
-display(plot(p1, p2, p3, layout = (3, 1)))
+p3 = plot!(pd.x, V_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
+#display(plot(p1, p2, p3, layout = (3, 1)))
+display(plot(p1))
+display(plot(p2))
+display(plot(p3))
 
 #pd1 = PlotData1D(time_series, 1)
 #pd2 = PlotData1D(time_series, 2)

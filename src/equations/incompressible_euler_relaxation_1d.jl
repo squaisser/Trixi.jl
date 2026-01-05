@@ -40,6 +40,15 @@ function initial_condition_riemann(x, t, equations::IncompressibleEulerRelaxatio
     end
 end
 
+@inline function source_terms_homogeneous(u, x, t,
+                              equations::IncompressibleEulerRelaxationEquations1D)
+    p_eps, v1, V_eps = u
+    s1 = zero(eltype(u))
+    s2 = zero(eltype(u))
+    s3 = zero(eltype(u))
+    return SVector(s1, s2, s3)
+end
+
 @inline function source_terms_constant(u, x, t,
                               equations::IncompressibleEulerRelaxationEquations1D)
     p_eps, v1, V_eps = u
