@@ -2,21 +2,22 @@
 # to verify the StructuredMesh implementation against TreeMesh
 
 using OrdinaryDiffEqLowStorageRK
+using OrdinaryDiffEq
 using Trixi
 using Infiltrator
 
 ###############################################################################
 # semidiscretization of the compressible Euler equations
 #TODO: choose proper parameters
-equations = IncompressibleEulerRelaxationEquations1D(0.1, 1.) #epsilon, a
+equations = IncompressibleEulerRelaxationEquations1D(0.001, 1.) #epsilon, a
 
 initial_condition = initial_condition_riemann
 # initial_condition = initial_condition_constant
 
 boundary_condition_zero_dirichlet = BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 0.0, 0.0))
 boundary_conditions_hyperbolic = (;
-                                  x_neg = BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 0.0, 0.0)),
-                                  x_pos = BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 1.0, 0.0))
+                                  x_neg = boundary_condition_do_nothing, #BoundaryConditionDirichlet((x, t, equations) -> SVector(5.6e-3, 0.5, 2.5e-3)),
+                                  x_pos = boundary_condition_do_nothing #BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 1.0, 0.0))
                                  )
 
 # Note that the expected EOC of 5 is not reached with this flux.
@@ -38,18 +39,20 @@ cells_per_dimension = (16,)
 
 #mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max)
 mesh = TreeMesh(coordinates_min, coordinates_max,
-                initial_refinement_level = 4,
+                initial_refinement_level = 5,
                 n_cells_max = 30_000,
-                periodicity = false)
+                periodicity = false
+                )
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
                                     source_terms = source_terms_constant,
-                                    boundary_conditions = boundary_conditions_hyperbolic)
+                                    boundary_conditions = boundary_conditions_hyperbolic
+                                    )
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 0.0)
+tspan = (0.0, 0.001)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -76,33 +79,31 @@ callbacks = CallbackSet(summary_callback,   #works
                         analysis_callback,  #fixed: MethodError: no method matching cons2entropy if not analysis_integrals=() (default analysis integrals:entropy -> needs cons2entropy)
                         alive_callback,     #works
                         save_solution,      #works
-                        stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
+                        #stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
                         time_series         #works
                         )
 
 ###############################################################################
 # run the simulation
 
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
-            dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
+sol = solve(ode, ImplicitEuler(autodiff=false);
+            dt = 0.001, # solve needs some value here but it will be overwritten by the stepsize_callback
             ode_default_options()..., callback = callbacks);
 println("Simulation finished with code $(sol.retcode).")
-
-pd = PlotData1D(sol)
-@show pd.variable_names
 
 ###############################################################################
 # plot some results
 using Plots
+pd = PlotData1D(sol)
 p1 = plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")#, ylims=(0.005, 0.006))
 p2 = plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1")#, ylims=(0, 1))  
 p3 = plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")#, ylims=(0, 0.005))
 display(plot(p1, p2, p3, layout = (3, 1)))
 
-pd1 = PlotData1D(time_series, 1)
-pd2 = PlotData1D(time_series, 2)
-p1 = plot(pd1["p_eps"], label = "p_eps at x=-0.5", xlabel = "t", ylabel = "p_eps")
-plot!(pd2["p_eps"], label = "p_eps at x=0.5", xlabel = "t", ylabel = "p_eps")
-plot!(legend=:outerbottom, legendcolumns=2)
-display(plot(p1))
+#pd1 = PlotData1D(time_series, 1)
+#pd2 = PlotData1D(time_series, 2)
+#p1 = plot(pd1["p_eps"], label = "p_eps at x=-0.5", xlabel = "t", ylabel = "p_eps")
+#plot!(pd2["p_eps"], label = "p_eps at x=0.5", xlabel = "t", ylabel = "p_eps")
+#plot!(legend=:outerbottom, legendcolumns=2)
+#display(plot(p1))
 println("Plotting finished.")

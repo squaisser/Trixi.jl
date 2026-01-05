@@ -20,6 +20,7 @@ docs/src/tutorials
 public/
 coverage/
 coverage_report/
+plot/
 **/*.jl.*.cov
 **/.ipynb_checkpoints/
 **/solution_*.txt
