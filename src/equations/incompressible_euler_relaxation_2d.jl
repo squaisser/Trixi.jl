@@ -1,0 +1,60 @@
+# By default, Julia/LLVM does not use fused multiply-add operations (FMAs).
+# Since these FMAs can increase the performance of many numerical algorithms,
+# we need to opt-in explicitly.
+# See https://ranocha.de/blog/Optimizing_EC_Trixi for further details.
+@muladd begin
+#! format: noindent
+
+struct IncompressibleEulerRelaxationEquations2D{RealT <: Real} <: 
+        AbstractIncompressibleEulerRelaxationEquations{2, 7}
+    epsilon::RealT  # relaxation parameter
+    a::RealT        # viscosity parameter
+end
+
+function varnames(::typeof(cons2cons), ::IncompressibleEulerRelaxationEquations2D)
+    return ("p_eps", "v1", "v2", "V_eps_11", "V_eps_12", "V_eps_21", "V_eps_22")
+end
+
+@inline function source_terms_homogeneous(u, x, t,
+                              equations::IncompressibleEulerRelaxationEquations2D)
+    s = zero(eltype(u))
+    return SVector(s, s, s, s, s, s, s)
+end
+
+@inline function source_terms_constant(u, x, t,
+                              equations::IncompressibleEulerRelaxationEquations2D)
+    p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u
+    s1 = zero(eltype(u))
+    s2 = zero(eltype(u))
+    s3 = zero(eltype(u))
+    s4 = v1^2 - 1/(equations.epsilon^2) * V_eps_11
+    s5 = v1*v2 - 1/(equations.epsilon^2) * V_eps_12
+    s6 = v2*v1 - 1/(equations.epsilon^2) * V_eps_21
+    s7 = v2^2 - 1/(equations.epsilon^2) * V_eps_22
+    return SVector(s1, s2, s3, s4, s5, s6, s7)
+end
+
+@inline function flux(u, orientation::Integer,
+                      equations::IncompressibleEulerRelaxationEquations2D)
+    p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u
+    if orientation == 1
+        f1 = v1
+        f2 = 1/(equations.epsilon^2) * (V_eps_11 + p_eps)
+        f3 = 1/(equations.epsilon^2) * V_eps_12
+        f4 = equations.a * v1
+        f5 = 0
+        f6 = equations.a * v2
+        f7 = 0
+    else
+        f1 = v2
+        f2 = 1/(equations.epsilon^2) * V_eps_21
+        f3 = 1/(equations.epsilon^2) * (V_eps_22 + p_eps)
+        f4 = 0
+        f5 = equations.a * v1
+        f6 = 0
+        f7 = equations.a * v2
+    end
+    return SVector(f1, f2, f3, f4, f5, f6, f7)
+end
+
+end # @muladd

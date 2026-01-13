@@ -624,6 +624,7 @@ abstract type AbstractShallowWaterEquations{NDIMS, NVARS} <:
 abstract type AbstractIncompressibleEulerRelaxationEquations{NDIMS, NVARS} <:
               AbstractEquations{NDIMS, NVARS} end
 include("incompressible_euler_relaxation_1d.jl")
+include("incompressible_euler_relaxation_2d.jl")
 
 # CompressibleEulerEquations
 abstract type AbstractCompressibleEulerEquations{NDIMS, NVARS} <:
