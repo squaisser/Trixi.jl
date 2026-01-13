@@ -75,9 +75,9 @@ function plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations::I
     #analytical solution
     p_eps_l, v1_l, V_eps_l = initial_condition_riemann(-0.5, 0.0, equations)
     p_eps_r, v1_r, V_eps_r = initial_condition_riemann(0.5, 0.0, equations)
-    p_eps_analytical = [analytical_solution_p_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
-    v1_analytical = [analytical_solution_v1(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
-    V_eps_analytical = [analytical_solution_V_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    p_eps_analytical = [analytical_solution_p_eps(x, sol_homogeneous.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    v1_analytical = [analytical_solution_v1(x, sol_homogeneous.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    V_eps_analytical = [analytical_solution_V_eps(x, sol_homogeneous.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
     
     p1 = plot(pdh["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", label = "Homogeneous", legend=:best)
     plot!(pdn["p_eps"], label = "Nonhomogeneous", legend=:best)
@@ -104,7 +104,7 @@ end
 eps = 0.001
 a = 1.0
 equations = IncompressibleEulerRelaxationEquations1D(eps, a)
-tspan = (0.0, eps/sqrt(2)*0.99)
+tspan = (0.0, eps/sqrt(2)*0.5)
 
 initial_condition = initial_condition_riemann
 
@@ -145,8 +145,8 @@ ode_nonhomogeneous = semidiscretize(semi_nonhomogeneous, tspan)
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-analysis_callback = AnalysisCallback(semi, interval = analysis_interval,
-                                            analysis_integrals=()) #NOTE: removed extra analysis errors and integrals to avoid errors
+#analysis_callback = AnalysisCallback(semi, interval = analysis_interval,
+#                                            analysis_integrals=()) #NOTE: removed extra analysis errors and integrals to avoid errors
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
@@ -156,7 +156,7 @@ save_solution = SaveSolutionCallback(interval = 100,
                                      solution_variables = cons2cons)
 
 callbacks = CallbackSet(summary_callback,
-                        analysis_callback,
+                        #analysis_callback,
                         alive_callback,
                         save_solution
                         )
