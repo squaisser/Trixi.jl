@@ -68,6 +68,36 @@ function plot_solution_riemann(sol, equations::IncompressibleEulerRelaxationEqua
     end
 end
 
+function plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations::IncompressibleEulerRelaxationEquations1D, combined=false)
+    pdh = PlotData1D(sol_homogeneous)
+    pdn = PlotData1D(sol_nonhomogeneous)
+    
+    #analytical solution
+    p_eps_l, v1_l, V_eps_l = initial_condition_riemann(-0.5, 0.0, equations)
+    p_eps_r, v1_r, V_eps_r = initial_condition_riemann(0.5, 0.0, equations)
+    p_eps_analytical = [analytical_solution_p_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    v1_analytical = [analytical_solution_v1(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    V_eps_analytical = [analytical_solution_V_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
+    
+    p1 = plot(pdh["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", label = "Homogeneous", legend=:best)
+    plot!(pdn["p_eps"], label = "Nonhomogeneous", legend=:best)
+    plot!(pdh.x, p_eps_analytical, label = "Analytical homogeneous", legend=:top, lw=2, ls=:dash, color=:black)
+    p2 = plot(pdh["v1"], title = "Velocity", xlabel = "x", label = "Homogeneous", legend=:best)
+    plot!(pdn["v1"], label = "Nonhomogeneous", legend=:best)
+    plot!(pdh.x, v1_analytical, label = "Analytical homogeneous", legend=:top, lw=2, ls=:dash, color=:black)
+    p3 = plot(pdh["V_eps"], title = "Relaxation Variable", xlabel = "x", label = "Homogeneous", legend=:best)
+    plot!(pdn["V_eps"], label = "Nonhomogeneous", legend=:best)
+    plot!(pdh.x, V_eps_analytical, label = "Analytical homogeneous", legend=:inside, lw=2, ls=:dash, color=:black)
+    
+    if combined
+        display(plot(p1, p2, p3, layout = (3, 1)))
+    else
+        display(plot(p1))
+        display(plot(p2))
+        display(plot(p3))
+    end
+end
+
 ###############################################################################
 # semidiscretization of the compressible Euler equations
 #TODO: choose proper parameters
@@ -77,27 +107,12 @@ equations = IncompressibleEulerRelaxationEquations1D(eps, a)
 tspan = (0.0, eps/sqrt(2)*0.99)
 
 initial_condition = initial_condition_riemann
-# initial_condition = initial_condition_constant
-source_terms = source_terms_homogeneous
-# source_terms = source_terms_constant
 
 boundary_condition_zero_dirichlet = BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 0.0, 0.0))
 boundary_conditions_hyperbolic = (;
-                                  x_neg = boundary_condition_do_nothing, #BoundaryConditionDirichlet((x, t, equations) -> SVector(5.6e-3, 0.5, 2.5e-3)),
-                                  x_pos = boundary_condition_do_nothing #BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 1.0, 0.0))
+                                  x_neg = boundary_condition_do_nothing,
+                                  x_pos = boundary_condition_do_nothing
                                  )
-
-# Note from elixir_euler_source_terms.jl:
-# Note that the expected EOC of 5 is not reached with this flux.
-# Using `flux_hll` instead yields the expected EOC.
-
-# Up to version 0.13.0, `max_abs_speed_naive` was used as the default wave speed estimate of
-# `const flux_lax_friedrichs = FluxLaxFriedrichs(), i.e., `FluxLaxFriedrichs(max_abs_speed = max_abs_speed_naive)`.
-# In the `StepsizeCallback`, though, the less diffusive `max_abs_speeds` is employed which is consistent with `max_abs_speed`.
-# Thus, we exchanged in PR#2458 the default wave speed used in the LLF flux to `max_abs_speed`.
-# To ensure that every example still runs we specify explicitly `FluxLaxFriedrichs(max_abs_speed_naive)`.
-# We remark, however, that the now default `max_abs_speed` is in general recommended due to compliance with the 
-# `StepsizeCallback` (CFL-Condition) and less diffusion.
 
 solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs())
 
@@ -112,15 +127,20 @@ mesh = TreeMesh(coordinates_min, coordinates_max,
                 periodicity = false
                 )
 
-semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
-                                    source_terms = source_terms,
+semi_homogeneous = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    source_terms = source_terms_homogeneous,
+                                    boundary_conditions = boundary_conditions_hyperbolic
+                                    )
+semi_nonhomogeneous = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    source_terms = source_terms_constant,
                                     boundary_conditions = boundary_conditions_hyperbolic
                                     )
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-ode = semidiscretize(semi, tspan)
+ode_homogeneous = semidiscretize(semi_homogeneous, tspan)
+ode_nonhomogeneous = semidiscretize(semi_nonhomogeneous, tspan)
 
 summary_callback = SummaryCallback()
 
@@ -135,43 +155,20 @@ save_solution = SaveSolutionCallback(interval = 100,
                                      save_final_solution = true,
                                      solution_variables = cons2cons)
 
-stepsize_callback = StepsizeCallback(cfl = 0.8)
-
-time_series = TimeSeriesCallback(semi, [(-0.5), (0.5)];
-                                 interval=5,
-                                 solution_variables=cons2cons,
-                                 filename="tseries.h5")
-
-callbacks = CallbackSet(summary_callback,   #works
-                        analysis_callback,  #fixed: MethodError: no method matching cons2entropy if not analysis_integrals=() (default analysis integrals:entropy -> needs cons2entropy)
-                        alive_callback,     #works
-                        save_solution,      #works
-                        #stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
-                        time_series         #works
+callbacks = CallbackSet(summary_callback,
+                        analysis_callback,
+                        alive_callback,
+                        save_solution
                         )
 
 ###############################################################################
 # run the simulation
-steps_vis = 6
-sol = solve(ode, ImplicitEuler(autodiff=false);
-            dt = 0.0001, # solve needs some value here but it will be overwritten by the stepsize_callback for explicit solvers
-            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis));
-println("Simulation finished with code $(sol.retcode).")
+sol_homogeneous = solve(ode_homogeneous, ImplicitEuler(autodiff=false); dt = 0.0001, ode_default_options()..., callback = callbacks);
+println("Homogeneous simulation finished with code $(sol_homogeneous.retcode).")
+sol_nonhomogeneous = solve(ode_nonhomogeneous, ImplicitEuler(autodiff=false); dt = 0.0001, ode_default_options()..., callback = callbacks);
+println("Nonhomogeneous simulation finished with code $(sol_nonhomogeneous.retcode).")
 
 ###############################################################################
 # plot some results
-plot_solution_riemann(sol, equations, false)
-
-anim = @animate for i in 1:steps_vis
-    pd = PlotData1D(sol.u[i], semi)
-    plot(pd["V_eps"])
-end
-mygif = gif(anim, "plot/V_eps.gif"; fps=steps_vis/3)
-
-#pd1 = PlotData1D(time_series, 1)
-#pd2 = PlotData1D(time_series, 2)
-#p1 = plot(pd1["p_eps"], label = "p_eps at x=-0.5", xlabel = "t", ylabel = "p_eps")
-#plot!(pd2["p_eps"], label = "p_eps at x=0.5", xlabel = "t", ylabel = "p_eps")
-#plot!(legend=:outerbottom, legendcolumns=2)
-#display(plot(p1))
+plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations, false)
 println("Plotting finished.")
