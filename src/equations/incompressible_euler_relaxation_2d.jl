@@ -25,7 +25,7 @@ function initial_condition_constant(x, t,
     V_eps_11 = convert(RealT, 1)
     V_eps_12 = convert(RealT, 0)
     V_eps_21 = convert(RealT, 0)
-    V_eps_22 = convert(RealT, 1)
+    V_eps_22 = convert(RealT, 0)
     return SVector(p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22)
 end
 
@@ -45,8 +45,8 @@ function initial_condition_riemann(x, t,
     V_eps_12_r = convert(RealT, 0)
     V_eps_21_l = convert(RealT, 0)
     V_eps_21_r = convert(RealT, 0)
-    V_eps_22_l = convert(RealT, 1)*equations.epsilon^2
-    V_eps_22_r = convert(RealT, 0.125)*equations.epsilon^2
+    V_eps_22_l = convert(RealT, 0)*equations.epsilon^2
+    V_eps_22_r = convert(RealT, 0)*equations.epsilon^2
     if x[1] < 0.0
         return SVector(p_eps_l, v1_l, v2_l, V_eps_11_l, V_eps_12_l, V_eps_21_l, V_eps_22_l)
     else
@@ -84,7 +84,7 @@ end
         f5 = 0
         f6 = equations.a * v2
         f7 = 0
-    else
+    elseif orientation == 2
         f1 = v2
         f2 = 1/(equations.epsilon^2) * V_eps_21
         f3 = 1/(equations.epsilon^2) * (V_eps_22 + p_eps)
@@ -92,13 +92,40 @@ end
         f5 = equations.a * v1
         f6 = 0
         f7 = equations.a * v2
+    else
+        throw("Invalid orientation: $orientation")
     end
+    return SVector(f1, f2, f3, f4, f5, f6, f7)
+end
+
+@inline function flux(u, normal_direction::AbstractVector,
+                    equations::IncompressibleEulerRelaxationEquations2D)
+    p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u
+    nx, ny = normal_direction
+    v_normal = v1*nx + v2*ny
+
+    f1 = v_normal
+    f2 = 1/(equations.epsilon^2) * (V_eps_11*nx + V_eps_21*ny + p_eps*nx)
+    f3 = 1/(equations.epsilon^2) * (V_eps_12*nx + V_eps_22*ny + p_eps*ny)
+    f4 = equations.a * v1 * nx
+    f5 = equations.a * v1 * ny
+    f6 = equations.a * v2 * nx
+    f7 = equations.a * v2 * ny
     return SVector(f1, f2, f3, f4, f5, f6, f7)
 end
 
 @inline function max_abs_speed_naive(u_ll, u_rr, orientation::Integer,
                                equations::IncompressibleEulerRelaxationEquations2D)
     return sqrt(equations.a+1)/(equations.epsilon)
+end
+
+@inline function max_abs_speed_naive(u_ll, u_rr, normal_direction::AbstractVector,
+                               equations::IncompressibleEulerRelaxationEquations2D)
+    return sqrt(equations.a+1)/(equations.epsilon)
+end
+
+@inline function max_abs_speeds(u, equations::IncompressibleEulerRelaxationEquations2D)
+    return (sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon))
 end
 
 end # @muladd

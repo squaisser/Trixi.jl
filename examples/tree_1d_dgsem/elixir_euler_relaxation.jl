@@ -77,9 +77,9 @@ equations = IncompressibleEulerRelaxationEquations1D(eps, a)
 tspan = (0.0, eps/sqrt(2)*0.99)
 
 initial_condition = initial_condition_riemann
-# initial_condition = initial_condition_constant
-source_terms = source_terms_homogeneous
-# source_terms = source_terms_constant
+#initial_condition = initial_condition_constant
+#source_terms = source_terms_homogeneous
+source_terms = source_terms_constant
 
 boundary_condition_zero_dirichlet = BoundaryConditionDirichlet((x, t, equations) -> SVector(0.0, 0.0, 0.0))
 boundary_conditions_hyperbolic = (;

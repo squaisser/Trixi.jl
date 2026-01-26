@@ -53,11 +53,11 @@ function plot_solution_riemann(sol, equations::IncompressibleEulerRelaxationEqua
     V_eps_analytical = [analytical_solution_V_eps(x, sol.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pd.x]
     
     p1 = plot(pd["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", ylabel = "p_eps")#, ylims=(0.005, 0.006))
-    p1 = plot!(pd.x, p_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
+    plot!(pd.x, p_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
     p2 = plot(pd["v1"], title = "Velocity", xlabel = "x", ylabel = "v1")#, ylims=(0, 1))  
-    p2 = plot!(pd.x, v1_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
+    plot!(pd.x, v1_analytical, label = "analytical", lw=2, ls=:dash, color=:black)
     p3 = plot(pd["V_eps"], title = "Relaxation Variable", xlabel = "x", ylabel = "V_eps")#, ylims=(0, 0.005))
-    p3 = plot!(pd.x, V_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)#, ylims=(-0.001, 0.004))
+    plot!(pd.x, V_eps_analytical, label = "analytical", lw=2, ls=:dash, color=:black)#, ylims=(-0.001, 0.004))
     
     if combined
         display(plot(p1, p2, p3, layout = (3, 1)))
@@ -96,6 +96,7 @@ function plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations::I
         display(plot(p2))
         display(plot(p3))
     end
+    return (p1, p2, p3)
 end
 
 ###############################################################################
@@ -170,5 +171,5 @@ println("Nonhomogeneous simulation finished with code $(sol_nonhomogeneous.retco
 
 ###############################################################################
 # plot some results
-plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations, false)
+p1, p2, p3 = plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations, false)
 println("Plotting finished.")
