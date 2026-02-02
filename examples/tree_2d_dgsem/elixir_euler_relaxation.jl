@@ -31,15 +31,15 @@ solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs())
 
 coordinates_min = (-1.0, -1.0)
 coordinates_max = (1.0, 1.0)
-cells_per_dimension = (16, 16)
 
-mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max,
-                periodicity = false)
-#mesh = TreeMesh(coordinates_min, coordinates_max,
-#                initial_refinement_level = 5,
-#                n_cells_max = 30_000,
-#                periodicity = false
-#                )
+cells_per_dimension = (1000, 1000)
+#mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max,
+#                periodicity = false)
+mesh = TreeMesh(coordinates_min, coordinates_max,
+                initial_refinement_level = 4, #changed from 5 to 3 to reduce number of cells (out of memory)
+                n_cells_max = 30_000,
+                periodicity = false
+                )
 
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
                                     source_terms = source_terms,
@@ -75,7 +75,7 @@ callbacks = CallbackSet(summary_callback,
                         analysis_callback,
                         alive_callback,
                         save_solution,
-                        stepsize_callback,
+                        #stepsize_callback,
                         #time_series
                         )
 
@@ -86,29 +86,32 @@ println("Starting simulation...")
 #lssolver = CarpenterKennedy2N54(williamson_condition = false)
 lssolver = ImplicitEuler(autodiff=false)
 sol = solve(ode, lssolver;
-            dt = 0.001, # solve needs some value here but it will be overwritten by the stepsize_callback for explicit solvers
-            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis));
+            dt = 0.0001, # solve needs some value here but it will be overwritten by the stepsize_callback for explicit solvers
+            ode_default_options()..., callback = callbacks);#, saveat = range(ode.tspan..., length=steps_vis));
 println("Simulation finished with code $(sol.retcode).")
 
 ###############################################################################
 # plot some results
-pd = PlotData1D(sol)
-plot!(p1, pd["p_eps"], label="2D", lw=2, legend=:best)
-plot!(p2, pd["v1"], label="2D", lw=2, legend=:best)
-plot!(p3, pd["V_eps_11"], label="2D", lw=2, legend=:best)
+#pd = PlotData1D(sol)
+#plot!(p1, pd["p_eps"], label="2D", lw=2, legend=:best)
+#plot!(p2, pd["v1"], label="2D", lw=2, legend=:best)
+#plot!(p3, pd["V_eps_11"], label="2D", lw=2, legend=:best)
+#display(p1)
+#display(p2)
+#display(p3)
 
-pp = plot(pd["p_eps"], title="p_eps", lw=2)
-pv1 = plot(pd["v1"], title="v1", lw=2)
-pv2 = plot(pd["v2"], title="v2", lw=2)
-pVeps_11 = plot(pd["V_eps_11"], title="V_eps_11", lw=2)
-pVeps_12 = plot(pd["V_eps_12"], title="V_eps_12", lw=2)
-pVeps_21 = plot(pd["V_eps_21"], title="V_eps_21", lw=2)
-pVeps_22 = plot(pd["V_eps_22"], title="V_eps_22", lw=2)
-display(pp)
-display(pv1)
-display(pv2)
-display(pVeps_11)
-display(pVeps_12)
-display(pVeps_21)
-display(pVeps_22)
-println("Plotting finished.")
+#pp = plot(pd["p_eps"], title="p_eps", lw=2)
+#pv1 = plot(pd["v1"], title="v1", lw=2)
+#pv2 = plot(pd["v2"], title="v2", lw=2)
+#pVeps_11 = plot(pd["V_eps_11"], title="V_eps_11", lw=2)
+#pVeps_12 = plot(pd["V_eps_12"], title="V_eps_12", lw=2)
+#pVeps_21 = plot(pd["V_eps_21"], title="V_eps_21", lw=2)
+#pVeps_22 = plot(pd["V_eps_22"], title="V_eps_22", lw=2)
+#display(pp)
+#display(pv1)
+#display(pv2)
+#display(pVeps_11)
+#display(pVeps_12)
+#display(pVeps_21)
+#display(pVeps_22)
+#println("Plotting finished.")
