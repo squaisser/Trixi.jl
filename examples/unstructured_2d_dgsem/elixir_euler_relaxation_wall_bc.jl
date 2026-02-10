@@ -1,25 +1,29 @@
 using OrdinaryDiffEqLowStorageRK
 using Trixi
+using Plots
 
 ###############################################################################
 # semidiscretization of the compressible Euler equations
 
-equations = CompressibleEulerEquations2D(1.4)
+equations = IncompressibleEulerRelaxationEquations2D(1e-3, 1.0)
 
-@inline function uniform_flow_state(x, t, equations::CompressibleEulerEquations2D)
+@inline function uniform_flow_state(x, t, equations::IncompressibleEulerRelaxationEquations2D)
 
     # set the freestream flow parameters
-    rho_freestream = 1.0
-    u_freestream = 0.3
-    p_freestream = inv(equations.gamma)
+    v_freestream = 0.3
+    p_eps_freestream = 1.0
 
-    theta = pi / 90.0 # analogous with a two degree angle of attack
+    theta = 0
     si, co = sincos(theta)
-    v1 = u_freestream * co
-    v2 = u_freestream * si
+    v1 = v_freestream * co
+    v2 = v_freestream * si
 
-    prim = SVector(rho_freestream, v1, v2, p_freestream)
-    return prim2cons(prim, equations)
+    V_eps_11 = 0.0
+    V_eps_12 = 0.0
+    V_eps_21 = 0.0
+    V_eps_22 = 0.0
+
+    return SVector(p_eps_freestream, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22)
 end
 
 initial_condition = uniform_flow_state
@@ -33,8 +37,7 @@ boundary_conditions = Dict(:Bottom => boundary_condition_uniform_flow,
 
 ###############################################################################
 # Get the DG approximation space
-
-solver = DGSEM(polydeg = 4, surface_flux = flux_hll)
+solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs()) #TODO: flux_hll
 
 ###############################################################################
 # Get the curved quad mesh from a file
@@ -45,20 +48,19 @@ mesh = UnstructuredMesh2D(mesh_file)
 
 ###############################################################################
 # create the semi discretization object
-
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
                                     boundary_conditions = boundary_conditions)
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 0.5)
+tspan = (0.0, equations.epsilon/sqrt(2)*0.1)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-analysis_callback = AnalysisCallback(semi, interval = analysis_interval)
+analysis_callback = AnalysisCallback(semi, interval = analysis_interval, analysis_integrals=())
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
@@ -66,9 +68,12 @@ save_solution = SaveSolutionCallback(interval = 10,
                                      save_initial_solution = true,
                                      save_final_solution = true)
 
-stepsize_callback = StepsizeCallback(cfl = 1.0)
+stepsize_callback = StepsizeCallback(cfl = 0.3)
 
-callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback, save_solution,
+callbacks = CallbackSet(summary_callback,
+                        analysis_callback,
+                        alive_callback,
+                        #save_solution,
                         stepsize_callback)
 
 ###############################################################################
@@ -77,8 +82,13 @@ callbacks = CallbackSet(summary_callback, analysis_callback, alive_callback, sav
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
             ode_default_options()..., callback = callbacks);
+println("Simulation finished with code $(sol.retcode).")
 
-using Plots
-pd = PlotData2D(sol)
-plot(pd["v1"])
-plot!(getmesh(pd))
+doPlot = true
+if !doPlot || sol.retcode != :Success
+    println("Plotting skipped.")
+else
+    pd = PlotData2D(sol)
+    plot(pd["v1"])
+    plot!(getmesh(pd))
+end

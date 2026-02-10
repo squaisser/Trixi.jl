@@ -54,6 +54,51 @@ function initial_condition_riemann(x, t,
     end
 end
 
+function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
+                                        x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    #FIXME: orientation
+    p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u_inner
+    nx, ny = normal_direction
+    v_normal = v1*nx + v2*ny
+    v_tangential = v1*ny - v2*nx
+
+    v_normal_wall = -v_normal
+    v_tangential_wall = v_tangential
+
+    v1_wall = v_normal_wall*nx + v_tangential_wall*ny
+    v2_wall = v_normal_wall*ny - v_tangential_wall*nx
+
+    p_eps_wall = p_eps
+    V_eps_11_wall = V_eps_11
+    V_eps_12_wall = V_eps_12
+    V_eps_21_wall = V_eps_21
+    V_eps_22_wall = V_eps_22
+
+    u_wall = SVector(p_eps_wall, v1_wall, v2_wall, V_eps_11_wall, V_eps_12_wall, V_eps_21_wall, V_eps_22_wall)
+    boundary_flux = surface_flux_function(u_inner, u_wall, normal_direction, equations)
+    return boundary_flux
+    
+end
+
+#function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
+#                                        direction,
+#                                        x, t,
+#                                        surface_flux_function,
+#                                        equations::IncompressibleEulerRelaxationEquations2D)
+#    
+#    if isodd(direction)
+#        boundary_flux = -boundary_condition_slip_wall(u_inner, -normal_direction,
+#                                                        x, t, surface_flux_function, equations)
+#    else
+#        boundary_flux = boundary_condition_slip_wall(u_inner, normal_direction,
+#                                                        x, t, surface_flux_function, equations)
+#    end
+#
+#    return boundary_flux
+#end
+
 @inline function source_terms_homogeneous(u, x, t,
                               equations::IncompressibleEulerRelaxationEquations2D)
     s = zero(eltype(u))
