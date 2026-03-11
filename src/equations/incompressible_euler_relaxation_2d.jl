@@ -54,11 +54,32 @@ function initial_condition_riemann(x, t,
     end
 end
 
+function boundary_condition_slip_wall(u_inner, orientation::Integer, x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    throw("Not implemented")
+end
+
+# Should be used together with TreeMesh
+# Orientation: x or y direction, direction: left/right or bottom/top
+function boundary_condition_slip_wall(u_inner, orientation::Integer, direction::Integer, x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    RealT = eltype(u_inner)
+    if orientation == 1 # x direction
+        normal_direction = SVector(one(RealT), zero(RealT))
+    else # y direction
+        normal_direction = SVector(zero(RealT), one(RealT))
+    end
+
+    return boundary_condition_slip_wall(u_inner, normal_direction, direction, x, t, surface_flux_function, equations)
+end
+
+
 function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
                                         x, t,
                                         surface_flux_function,
                                         equations::IncompressibleEulerRelaxationEquations2D)
-    #FIXME: orientation
     p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u_inner
     nx, ny = normal_direction
     v_normal = v1*nx + v2*ny
@@ -82,22 +103,22 @@ function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
     
 end
 
-#function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
-#                                        direction,
-#                                        x, t,
-#                                        surface_flux_function,
-#                                        equations::IncompressibleEulerRelaxationEquations2D)
-#    
-#    if isodd(direction)
-#        boundary_flux = -boundary_condition_slip_wall(u_inner, -normal_direction,
-#                                                        x, t, surface_flux_function, equations)
-#    else
-#        boundary_flux = boundary_condition_slip_wall(u_inner, normal_direction,
-#                                                        x, t, surface_flux_function, equations)
-#    end
-#
-#    return boundary_flux
-#end
+# Should be used together with StructuredMesh
+function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
+                                        direction,
+                                        x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    
+    if isodd(direction)
+        boundary_flux = -boundary_condition_slip_wall(u_inner, -normal_direction,
+                                                        x, t, surface_flux_function, equations)
+    else
+        boundary_flux = boundary_condition_slip_wall(u_inner, normal_direction,
+                                                        x, t, surface_flux_function, equations)
+    end
+    return boundary_flux
+end
 
 @inline function source_terms_homogeneous(u, x, t,
                               equations::IncompressibleEulerRelaxationEquations2D)

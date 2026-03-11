@@ -35,7 +35,7 @@ semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
 # ODE solvers, callbacks etc.
 
 # Create ODE problem with time span from 0.0 to 30.0
-tspan = (0.0, 30.0)
+tspan = (0.0, 100.0)
 ode = semidiscretize(semi, tspan)
 
 # At the beginning of the main loop, the SummaryCallback prints a summary of the simulation setup
@@ -56,6 +56,13 @@ callbacks = CallbackSet(summary_callback, analysis_callback,
 # run the simulation
 
 # OrdinaryDiffEq's `solve` method evolves the solution in time and executes the passed callbacks
+steps_vis = 100
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
-            ode_default_options()..., callback = callbacks)
+            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis))
+
+for i in 1:steps_vis
+    pd = PlotData1D(sol.u[i], semi)
+    p = plot(pd["v1_prime"], ylim=(-1.0, 1.0))
+    display(p)
+end
