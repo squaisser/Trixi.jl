@@ -4,8 +4,9 @@ using Trixi
 using Plots
 
 ###############################################################################
-
-equations = IncompressibleEulerRelaxationEquations2D(1e-3, 1.0)
+eps = 1.0e-4
+a = 1.0
+equations = IncompressibleEulerRelaxationEquations2D(eps ,a)
 
 @inline function uniform_flow_state(x, t, equations::IncompressibleEulerRelaxationEquations2D)
 
@@ -27,6 +28,7 @@ equations = IncompressibleEulerRelaxationEquations2D(1e-3, 1.0)
 end
 
 initial_condition = uniform_flow_state
+source_terms = source_terms_constant
 
 boundary_condition_uniform_flow = BoundaryConditionDirichlet(uniform_flow_state)
 boundary_conditions = Dict(:Bottom => boundary_condition_uniform_flow,
@@ -49,17 +51,18 @@ mesh = UnstructuredMesh2D(mesh_file)
 ###############################################################################
 # create the semi discretization object
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
+                                    source_terms = source_terms,
                                     boundary_conditions = boundary_conditions)
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, equations.epsilon/sqrt(2))
+tspan = (0.0, 5*eps)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
 
-analysis_interval = 1000
+analysis_interval = 10000
 analysis_callback = AnalysisCallback(semi, interval = analysis_interval, analysis_integrals=())
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
@@ -68,7 +71,7 @@ save_solution = SaveSolutionCallback(interval = 10,
                                      save_initial_solution = true,
                                      save_final_solution = true)
 
-stepsize_callback = StepsizeCallback(cfl = 0.01)
+stepsize_callback = StepsizeCallback(cfl = 0.03)
 
 callbacks = CallbackSet(summary_callback,
                         analysis_callback,
