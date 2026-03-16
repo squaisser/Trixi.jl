@@ -92,10 +92,10 @@ function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
     v2_wall = v_normal_wall*ny - v_tangential_wall*nx
 
     p_eps_wall = p_eps
-    V_eps_11_wall = V_eps_11
-    V_eps_12_wall = V_eps_12
-    V_eps_21_wall = V_eps_21
-    V_eps_22_wall = V_eps_22
+    V_eps_11_wall = -V_eps_11
+    V_eps_12_wall = -V_eps_12
+    V_eps_21_wall = -V_eps_21
+    V_eps_22_wall = -V_eps_22
 
     u_wall = SVector(p_eps_wall, v1_wall, v2_wall, V_eps_11_wall, V_eps_12_wall, V_eps_21_wall, V_eps_22_wall)
     boundary_flux = surface_flux_function(u_inner, u_wall, normal_direction, equations)
@@ -178,6 +178,16 @@ end
     f6 = equations.a * v2 * nx
     f7 = equations.a * v2 * ny
     return SVector(f1, f2, f3, f4, f5, f6, f7)
+end
+
+@inline function min_max_speed_davis(u_ll, u_rr, normal_direction::AbstractVector,
+                               equations::IncompressibleEulerRelaxationEquations2D)
+    return -sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon)
+end
+
+@inline function min_max_speed_davis(u_ll, u_rr, orientation::Integer,
+                               equations::IncompressibleEulerRelaxationEquations2D)
+    return -sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon)
 end
 
 @inline function max_abs_speed_naive(u_ll, u_rr, orientation::Integer,

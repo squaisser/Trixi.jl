@@ -74,7 +74,7 @@ end
 eps = 0.001
 a = 1.0
 equations = IncompressibleEulerRelaxationEquations1D(eps, a)
-tspan = (0.0, eps/sqrt(2)*0.99)
+tspan = (0.0, eps/sqrt(2))
 
 initial_condition = initial_condition_riemann
 #initial_condition = initial_condition_constant
@@ -135,7 +135,7 @@ save_solution = SaveSolutionCallback(interval = 100,
                                      save_final_solution = true,
                                      solution_variables = cons2cons)
 
-stepsize_callback = StepsizeCallback(cfl = 0.8)
+stepsize_callback = StepsizeCallback(cfl = 0.3)
 
 time_series = TimeSeriesCallback(semi, [(-0.5), (0.5)];
                                  interval=5,
@@ -146,14 +146,16 @@ callbacks = CallbackSet(summary_callback,   #works
                         analysis_callback,  #fixed: MethodError: no method matching cons2entropy if not analysis_integrals=() (default analysis integrals:entropy -> needs cons2entropy)
                         alive_callback,     #works
                         save_solution,      #works
-                        #stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
+                        stepsize_callback,  #fixed: MethodError: no method matching max_abs_speeds
                         time_series         #works
                         )
 
 ###############################################################################
 # run the simulation
 steps_vis = 6
-sol = solve(ode, ImplicitEuler(autodiff=false);
+#ssolver = ImplicitEuler(autodiff=false)
+ssolver = CarpenterKennedy2N54(williamson_condition = false);
+sol = solve(ode, ssolver;
             dt = 0.0001, # solve needs some value here but it will be overwritten by the stepsize_callback for explicit solvers
             ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis));
 println("Simulation finished with code $(sol.retcode).")
@@ -162,11 +164,11 @@ println("Simulation finished with code $(sol.retcode).")
 # plot some results
 plot_solution_riemann(sol, equations, false)
 
-anim = @animate for i in 1:steps_vis
-    pd = PlotData1D(sol.u[i], semi)
-    plot(pd["V_eps"])
-end
-mygif = gif(anim, "plot/V_eps.gif"; fps=steps_vis/3)
+#anim = @animate for i in 1:steps_vis
+#    pd = PlotData1D(sol.u[i], semi)
+#    plot(pd["V_eps"])
+#end
+#mygif = gif(anim, "plot/V_eps.gif"; fps=steps_vis/3)
 
 #pd1 = PlotData1D(time_series, 1)
 #pd2 = PlotData1D(time_series, 2)

@@ -45,7 +45,7 @@ function boundary_condition_slip_wall(u_inner, orientation::Integer, direction, 
                                         surface_flux_function,
                                         equations::IncompressibleEulerRelaxationEquations1D)
     # ignore orientation since it is always "1" in 1D
-    u_boundary = SVector(u_inner[1], -u_inner[2], u_inner[3])
+    u_boundary = SVector(u_inner[1], -u_inner[2], -u_inner[3])
     if iseven(direction) # u_inner is "left" of boundary, u_boundary is "right" of boundary
         return surface_flux_function(u_inner, u_boundary, orientation, equations)
     else # u_boundary is "left" of boundary, u_inner is "right" of boundary
@@ -80,6 +80,11 @@ end
     f2 = 1/(equations.epsilon^2) * (V_eps + p_eps)
     f3 = equations.a*v1
     return SVector(f1, f2, f3)
+end
+
+@inline function min_max_speed_davis(u_ll, u_rr, orientation::Integer,
+                               equations::IncompressibleEulerRelaxationEquations1D)
+    return -sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon)
 end
 
 @inline function max_abs_speed_naive(u_ll, u_rr, orientation::Integer,

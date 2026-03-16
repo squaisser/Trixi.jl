@@ -55,4 +55,9 @@ callbacks = CallbackSet(summary_callback,
 
 sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
-            ode_default_options()..., callback = callbacks);
+            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=20));
+for i in 1:20
+    pd = PlotData2D(sol.u[i], semi)
+    p = plot(pd["v1"])
+    display(p)
+end
