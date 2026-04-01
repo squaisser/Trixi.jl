@@ -17,12 +17,11 @@ end
 
 function initial_condition_constant(x, t,
                                   equations::IncompressibleEulerRelaxationEquations2D)
-    #TODO: assign proper initial condition
     RealT = eltype(x)
-    p_eps = convert(RealT, 1)
+    p_eps = convert(RealT, 0)
     v1 = convert(RealT, 1)
     v2 = convert(RealT, 0)
-    V_eps_11 = convert(RealT, 1)
+    V_eps_11 = v1^2*equations.epsilon^2
     V_eps_12 = convert(RealT, 0)
     V_eps_21 = convert(RealT, 0)
     V_eps_22 = convert(RealT, 0)
@@ -80,6 +79,7 @@ function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
                                         x, t,
                                         surface_flux_function,
                                         equations::IncompressibleEulerRelaxationEquations2D)
+    RealT = eltype(u_inner)
     p_eps, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22 = u_inner
     nx, ny = normal_direction
     v_normal = v1*nx + v2*ny
@@ -91,11 +91,37 @@ function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
     v1_wall = v_normal_wall*nx + v_tangential_wall*ny
     v2_wall = v_normal_wall*ny - v_tangential_wall*nx
 
+    #FIXME: rotate the V_eps tensor properly
     p_eps_wall = p_eps
-    V_eps_11_wall = -V_eps_11
-    V_eps_12_wall = -V_eps_12
-    V_eps_21_wall = -V_eps_21
-    V_eps_22_wall = -V_eps_22
+    #V_eps_11_wall = v1_wall^2*equations.epsilon^2 #V_eps_11
+    #V_eps_12_wall = v1_wall*v2_wall*equations.epsilon^2 #-V_eps_12
+    #V_eps_21_wall = v1_wall*v2_wall*equations.epsilon^2 #-V_eps_21
+    #V_eps_22_wall = v2_wall^2*equations.epsilon^2 #V_eps_22
+
+    # Build reflection matrix
+    R11 = 1 - 2*nx*nx
+    R12 = -2*nx*ny
+    R21 = -2*nx*ny
+    R22 = 1 - 2*ny*ny
+
+    # Original tensor
+    V11 = V_eps_11
+    V12 = V_eps_12
+    V21 = V_eps_21
+    V22 = V_eps_22
+
+    # Compute V_wall = R * V * R^T
+    # First compute R * V
+    RV11 = R11*V11 + R12*V21
+    RV12 = R11*V12 + R12*V22
+    RV21 = R21*V11 + R22*V21
+    RV22 = R21*V12 + R22*V22
+
+    # Then multiply by R^T
+    V_eps_11_wall = RV11*R11 + RV12*R12
+    V_eps_12_wall = RV11*R21 + RV12*R22
+    V_eps_21_wall = RV21*R11 + RV22*R12
+    V_eps_22_wall = RV21*R21 + RV22*R22
 
     u_wall = SVector(p_eps_wall, v1_wall, v2_wall, V_eps_11_wall, V_eps_12_wall, V_eps_21_wall, V_eps_22_wall)
     boundary_flux = surface_flux_function(u_inner, u_wall, normal_direction, equations)
@@ -117,6 +143,43 @@ function boundary_condition_slip_wall(u_inner, normal_direction::AbstractVector,
         boundary_flux = boundary_condition_slip_wall(u_inner, normal_direction,
                                                         x, t, surface_flux_function, equations)
     end
+    return boundary_flux
+end
+
+function boundary_condition_outflow(u_inner, orientation::Integer, direction::Integer, x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    RealT = eltype(u_inner)
+    if orientation == 1 # x direction
+        normal_direction = SVector(one(RealT), zero(RealT))
+    else # y direction
+        normal_direction = SVector(zero(RealT), one(RealT))
+    end
+
+    return boundary_condition_outflow(u_inner, normal_direction, direction, x, t, surface_flux_function, equations)
+end
+
+function boundary_condition_outflow(u_inner, normal_direction::AbstractVector,
+                                        direction,
+                                        x, t,
+                                        surface_flux_function,
+                                        equations::IncompressibleEulerRelaxationEquations2D)
+    
+    if isodd(direction)
+        boundary_flux = -boundary_condition_outflow(u_inner, -normal_direction,
+                                                        x, t, surface_flux_function, equations)
+    else
+        boundary_flux = boundary_condition_outflow(u_inner, normal_direction,
+                                                        x, t, surface_flux_function, equations)
+    end
+    return boundary_flux
+end
+
+function boundary_condition_outflow(u_inner, normal_direction::AbstractVector,
+                                    x, t, surface_flux_function, 
+                                    equations::IncompressibleEulerRelaxationEquations2D)
+    u_wall = u_inner
+    boundary_flux = surface_flux_function(u_inner, u_wall, normal_direction, equations)
     return boundary_flux
 end
 
@@ -200,8 +263,14 @@ end
     return sqrt(equations.a+1)/(equations.epsilon)
 end
 
+@inline function max_abs_speed(equations::IncompressibleEulerRelaxationEquations2D)
+    return (sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon))
+end
+
 @inline function max_abs_speeds(u, equations::IncompressibleEulerRelaxationEquations2D)
     return (sqrt(equations.a+1)/(equations.epsilon), sqrt(equations.a+1)/(equations.epsilon))
 end
+
+#@inline have_constant_speed(::IncompressibleEulerRelaxationEquations2D) = True()
 
 end # @muladd
