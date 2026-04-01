@@ -45,11 +45,11 @@ function boundary_condition_slip_wall(u_inner, orientation::Integer, direction, 
                                         surface_flux_function,
                                         equations::IncompressibleEulerRelaxationEquations1D)
     # ignore orientation since it is always "1" in 1D
-    u_boundary = SVector(u_inner[1], -u_inner[2], -u_inner[3])
+    u_boundary = SVector(u_inner[1], -u_inner[2], u_inner[3])
     if iseven(direction) # u_inner is "left" of boundary, u_boundary is "right" of boundary
-        return surface_flux_function(u_inner, u_boundary, orientation, equations)
+        flux = surface_flux_function(u_inner, u_boundary, orientation, equations)
     else # u_boundary is "left" of boundary, u_inner is "right" of boundary
-        return surface_flux_function(u_boundary, u_inner, orientation, equations)
+        flux = surface_flux_function(u_boundary, u_inner, orientation, equations)
     end
 end
 
