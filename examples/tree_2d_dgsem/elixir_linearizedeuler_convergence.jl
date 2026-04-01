@@ -1,5 +1,7 @@
 using OrdinaryDiffEqLowStorageRK
+using OrdinaryDiffEq
 using Trixi
+using Plots
 
 ###############################################################################
 # semidiscretization of the linearized Euler equations
@@ -16,9 +18,11 @@ coordinates_min = (-1.0, -1.0) # minimum coordinates (min(x), min(y))
 coordinates_max = (1.0, 1.0) # maximum coordinates (max(x), max(y))
 
 # Create a uniformly refined mesh with periodic boundaries
-mesh = TreeMesh(coordinates_min, coordinates_max,
+ mesh = TreeMesh(coordinates_min, coordinates_max,
                 initial_refinement_level = 4,
                 n_cells_max = 30_000)
+
+#mesh = StructuredMesh((16, 16), coordinates_min, coordinates_max)
 
 # A semidiscretization collects data structures and functions for the spatial discretization
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver)
@@ -51,12 +55,14 @@ stepsize_callback = StepsizeCallback(cfl = 0.8)
 
 # Create a CallbackSet to collect all callbacks such that they can be passed to the ODE solver
 callbacks = CallbackSet(summary_callback, analysis_callback, save_solution, alive_callback,
-                        stepsize_callback)
+                        #stepsize_callback
+                        )
 
 ###############################################################################
 # run the simulation
 
 # OrdinaryDiffEq's `solve` method evolves the solution in time and executes the passed callbacks
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
-            dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
-            ode_default_options()..., callback = callbacks);
+sol = solve(ode, KenCarp4(autodiff=false);
+            dt = 0.1, # solve needs some value here but it will be overwritten by the stepsize_callback
+            callback = callbacks, save_everystep = false);
+println("Simulation finished with code $(sol.retcode).")

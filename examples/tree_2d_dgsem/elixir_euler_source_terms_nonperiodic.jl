@@ -1,5 +1,7 @@
 using OrdinaryDiffEqLowStorageRK
+using OrdinaryDiffEq
 using Trixi
+using Plots
 
 ###############################################################################
 # semidiscretization of the compressible Euler equations
@@ -63,12 +65,28 @@ save_solution = SaveSolutionCallback(interval = 100,
 stepsize_callback = StepsizeCallback(cfl = 1.0)
 
 callbacks = CallbackSet(summary_callback,
-                        analysis_callback, alive_callback,
-                        save_restart, save_solution,
-                        stepsize_callback)
+                        analysis_callback, 
+                        alive_callback,
+                        #save_restart, 
+                        #save_solution,
+                        #stepsize_callback
+                        )
 ###############################################################################
 # run the simulation
-
-sol = solve(ode, CarpenterKennedy2N54(williamson_condition = false);
+solver_implicit = KenCarp4(autodiff = false)
+solver_explicit = CarpenterKennedy2N54(williamson_condition = false)
+sol = solve(ode, solver_implicit;
             dt = 1.0, # solve needs some value here but it will be overwritten by the stepsize_callback
-            ode_default_options()..., callback = callbacks);
+            ode_default_options()..., callback = callbacks, save_everystep = false);
+
+println("Simulation finished with code $(sol.retcode).")
+
+# plots
+doPlot = false
+if !doPlot || sol.retcode != :Success
+    println("Plotting skipped.")
+else
+    pd = PlotData2D(sol)
+    display(plot(pd["v1"], title = "v1"))
+end
+    
