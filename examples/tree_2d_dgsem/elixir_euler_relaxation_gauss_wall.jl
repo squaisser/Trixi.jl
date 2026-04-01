@@ -6,22 +6,22 @@ using Plots
 ###############################################################################
 # semidiscretization of the compressible Euler equations
 
-eps = 1e-3
+eps = 1.0e-3
 a = 1.0
 equations = IncompressibleEulerRelaxationEquations2D(eps, a)
 
 ###############################################################################
 # Get the DG approximation space
-solver = DGSEM(polydeg = 2, surface_flux = FluxLaxFriedrichs())
+solver = DGSEM(polydeg = 4, surface_flux = flux_hll)
 
 ###############################################################################
 # Mesh
-coordinates_min = (0.0, 0.0)
-coordinates_max = (90.0, 90.0)
+coordinates_min = (-1.0, -1.0)
+coordinates_max = (1.0, 1.0)
 
 function initial_condition_gauss_wall(x, t, equations::IncompressibleEulerRelaxationEquations2D)
     p_eps = 0.0
-    v1 = 2 * exp(-(x[1] - 45)^2 / 25)
+    v1 = 2 * exp(-(x[1])^2 / 0.05)
     v2 = 0.0
     V_eps_11 = 0.0
     V_eps_12 = 0.0
@@ -31,7 +31,7 @@ function initial_condition_gauss_wall(x, t, equations::IncompressibleEulerRelaxa
 end
 
 mesh = TreeMesh(coordinates_min, coordinates_max,
-                initial_refinement_level = 3,
+                initial_refinement_level = 4,
                 n_cells_max = 100_000,
                 periodicity = false)
 
@@ -44,12 +44,13 @@ boundary_conditions = (;
     y_pos = boundary_condition_do_nothing
 )
 semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition_gauss_wall, solver,
+                                    source_terms = source_terms_constant,
                                     boundary_conditions = boundary_conditions)
 
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 90*equations.epsilon/sqrt(2))
+tspan = (0.0, 2.3*eps)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()
@@ -69,15 +70,17 @@ callbacks = CallbackSet(summary_callback,
                         analysis_callback,
                         alive_callback,
                         #save_solution,
-                        #stepsize_callback
+                        stepsize_callback
                         )
 
 ###############################################################################
 # run the simulation
-steps_vis = 10
-sol = solve(ode, KenCarp4(autodiff=false);
-            dt = eps, # solve needs some value here but it will be overwritten by the stepsize_callback
-            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis));
+steps_vis = 20
+#ssolver = KenCarp4(autodiff=false);
+ssolver = CarpenterKennedy2N54(williamson_condition = false);
+sol = solve(ode, ssolver;
+            dt = tspan[2]/steps_vis/5, # solve needs some value here but it will be overwritten by the stepsize_callback
+            ode_default_options()..., callback = callbacks, saveat = range(ode.tspan..., length=steps_vis))
 println("Simulation finished with code $(sol.retcode).")
 
 doPlot = true
@@ -86,14 +89,20 @@ if !doPlot || sol.retcode != :Success
 else
     for i in 1:steps_vis
         pd = PlotData1D(sol.u[i], semi, slice=:x)
-        p_v1 = plot(pd["v1"])
+        p_v1 = plot(pd["v1"], ylim=(-2.0, 2.0))
+        p_v2 = plot(pd["v2"], ylim=(-2.0, 2.0))
         p_peps = plot(pd["p_eps"])
-        p_v2 = plot(pd["v2"])
-        display(plot(p_v1, p_peps, p_v2, layout = (3, 1)))
+        display(plot(p_v1, p_v2, p_peps, layout = (3, 1)))
+    end
+end
+
+function plot_V_eps(sol, steps_vis)
+    for i in 1:steps_vis
+        pd = PlotData1D(sol.u[i], semi, slice=:x)
         p_veps_11 = plot(pd["V_eps_11"])
         p_veps_12 = plot(pd["V_eps_12"])
         p_veps_21 = plot(pd["V_eps_21"])
         p_veps_22 = plot(pd["V_eps_22"])
-        #display(plot(p_veps_11, p_veps_12, p_veps_21, p_veps_22, layout = (2, 2)))
+        display(plot(p_veps_11, p_veps_12, p_veps_21, p_veps_22, layout = (2, 2)))
     end
 end

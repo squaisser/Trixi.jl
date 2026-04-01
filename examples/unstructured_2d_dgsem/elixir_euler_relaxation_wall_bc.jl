@@ -19,10 +19,10 @@ equations = IncompressibleEulerRelaxationEquations2D(eps ,a)
     v1 = v_freestream * co
     v2 = v_freestream * si
 
-    V_eps_11 = 0.0
-    V_eps_12 = 0.0
-    V_eps_21 = 0.0
-    V_eps_22 = 0.0
+    V_eps_11 = v1^2 * equations.epsilon^2
+    V_eps_12 = v1 * v2 * equations.epsilon^2
+    V_eps_21 = v1 * v2 * equations.epsilon^2
+    V_eps_22 = v2^2 * equations.epsilon^2
 
     return SVector(p_eps_freestream, v1, v2, V_eps_11, V_eps_12, V_eps_21, V_eps_22)
 end
@@ -57,7 +57,7 @@ semi = SemidiscretizationHyperbolic(mesh, equations, initial_condition, solver,
 ###############################################################################
 # ODE solvers, callbacks etc.
 
-tspan = (0.0, 5*eps)
+tspan = (0.0, 2*eps)
 ode = semidiscretize(semi, tspan)
 
 summary_callback = SummaryCallback()

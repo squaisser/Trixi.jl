@@ -3,6 +3,7 @@ using OrdinaryDiffEq
 using Trixi
 using Infiltrator
 using Plots
+using LaTeXStrings
 
 function analytical_solution_p_eps(x, t, equations::IncompressibleEulerRelaxationEquations1D, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r)
     b = sqrt(equations.a + 1) / equations.epsilon
@@ -76,15 +77,19 @@ function plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations::I
     v1_analytical = [analytical_solution_v1(x, sol_homogeneous.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
     V_eps_analytical = [analytical_solution_V_eps(x, sol_homogeneous.t[end], equations, p_eps_l, v1_l, V_eps_l, p_eps_r, v1_r, V_eps_r) for x in pdh.x]
     
-    p1 = plot(pdh["p_eps"], title = "Pressure Relaxation Variable", xlabel = "x", label = "Homogeneous", legend=:best)
-    plot!(pdn["p_eps"], label = "Nonhomogeneous", legend=:best)
-    plot!(pdh.x, p_eps_analytical, label = "Analytical homogeneous", legend=:top, lw=2, ls=:dash, color=:black)
-    p2 = plot(pdh["v1"], title = "Velocity", xlabel = "x", label = "Homogeneous", legend=:best)
-    plot!(pdn["v1"], label = "Nonhomogeneous", legend=:best)
-    plot!(pdh.x, v1_analytical, label = "Analytical homogeneous", legend=:top, lw=2, ls=:dash, color=:black)
-    p3 = plot(pdh["V_eps"], title = "Relaxation Variable", xlabel = "x", label = "Homogeneous", legend=:best)
-    plot!(pdn["V_eps"], label = "Nonhomogeneous", legend=:best)
-    plot!(pdh.x, V_eps_analytical, label = "Analytical homogeneous", legend=:inside, lw=2, ls=:dash, color=:black)
+    p1 = plot(pdh.x, p_eps_analytical, label = "Analytical homogeneous", lw=2, ls=:dash, color=:black)
+    plot!(pdh["p_eps"], xlabel = "x", label = "1D homogeneous")
+    plot!(pdn["p_eps"], label = "1D nonhomogeneous", legend=:top, title="Pressure p_eps")
+    
+
+    p2 = plot(pdh.x, v1_analytical, label = "Analytical homogeneous", lw=2, ls=:dash, color=:black) 
+    plot!(pdh["v1"], xlabel = "x", label = "1D homogeneous")
+    plot!(pdn["v1"], label = "1D nonhomogeneous", legend=:topleft, title="Velocity u")
+    
+    
+    p3 = plot(pdh.x, V_eps_analytical, label = "Analytical homogeneous", lw=2, ls=:dash, color=:black)
+    plot!(pdh["V_eps"], xlabel = "x", label = "1D homogeneous")
+    plot!(pdn["V_eps"], label = "1D nonhomogeneous", legend=:inside, title = "Relaxation variable V_eps")
     
     if combined
         display(plot(p1, p2, p3, layout = (3, 1)))
@@ -98,8 +103,7 @@ end
 
 ###############################################################################
 # semidiscretization of the compressible Euler equations
-#TODO: choose proper parameters
-eps = 0.001
+eps = 1.0e-3
 a = 1.0
 equations = IncompressibleEulerRelaxationEquations1D(eps, a)
 tspan = (0.0, eps/sqrt(2)*0.5)
@@ -116,9 +120,7 @@ solver = DGSEM(polydeg = 4, surface_flux = FluxLaxFriedrichs())
 
 coordinates_min = (-1.0,)
 coordinates_max = (1.0,)
-cells_per_dimension = (16,)
 
-#mesh = StructuredMesh(cells_per_dimension, coordinates_min, coordinates_max)
 mesh = TreeMesh(coordinates_min, coordinates_max,
                 initial_refinement_level = 5,
                 n_cells_max = 30_000,
@@ -143,8 +145,6 @@ ode_nonhomogeneous = semidiscretize(semi_nonhomogeneous, tspan)
 summary_callback = SummaryCallback()
 
 analysis_interval = 100
-#analysis_callback = AnalysisCallback(semi, interval = analysis_interval,
-#                                            analysis_integrals=()) #NOTE: removed extra analysis errors and integrals to avoid errors
 
 alive_callback = AliveCallback(analysis_interval = analysis_interval)
 
@@ -153,20 +153,25 @@ save_solution = SaveSolutionCallback(interval = 100,
                                      save_final_solution = true,
                                      solution_variables = cons2cons)
 
+stepsize_callback = StepsizeCallback(cfl = 0.3)
+
 callbacks = CallbackSet(summary_callback,
-                        #analysis_callback,
                         alive_callback,
-                        save_solution
+                        stepsize_callback
                         )
 
 ###############################################################################
 # run the simulation
-sol_homogeneous = solve(ode_homogeneous, ImplicitEuler(autodiff=false); dt = 0.0001, ode_default_options()..., callback = callbacks);
+sol_homogeneous = solve(ode_homogeneous, CarpenterKennedy2N54(williamson_condition = false); dt = eps/10, ode_default_options()..., callback = callbacks);
 println("Homogeneous simulation finished with code $(sol_homogeneous.retcode).")
-sol_nonhomogeneous = solve(ode_nonhomogeneous, ImplicitEuler(autodiff=false); dt = 0.0001, ode_default_options()..., callback = callbacks);
+sol_nonhomogeneous = solve(ode_nonhomogeneous, CarpenterKennedy2N54(williamson_condition = false); dt = eps/10, ode_default_options()..., callback = callbacks);
 println("Nonhomogeneous simulation finished with code $(sol_nonhomogeneous.retcode).")
 
 ###############################################################################
 # plot some results
 p1, p2, p3 = plot_solution_compare(sol_homogeneous, sol_nonhomogeneous, equations, false)
+path = "/home/ng143200/hiwi/Trixi.jl/plot/1D_explicit/"
+savefig(p1, path*"p_eps.png")
+savefig(p2, path*"v1.png")
+savefig(p3, path*"V_eps.png")
 println("Plotting finished.")
